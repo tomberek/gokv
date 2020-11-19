@@ -17,9 +17,10 @@ import (
 
 // Client is a gokv.Store implementation for S3.
 type Client struct {
-	c          *awss3.S3
-	bucketName string
-	codec      encoding.Codec
+	c                      *awss3.S3
+	bucketName             string
+	codec                  encoding.Codec
+	bucketOwnerFullControl bool
 }
 
 // Set stores the given value for the given key.
@@ -40,6 +41,10 @@ func (c Client) Set(k string, v interface{}) error {
 		Body:   bytes.NewReader(data),
 		Bucket: &c.bucketName,
 		Key:    &k,
+	}
+	if c.bucketOwnerFullControl {
+		acl := awss3.ObjectCannedACLBucketOwnerFullControl
+		pubObjectInput.ACL = &acl
 	}
 	_, err = c.c.PutObject(&pubObjectInput)
 	if err != nil {
@@ -152,6 +157,9 @@ type Options struct {
 	// Call createBucket
 	// Optional (false by default)
 	BypassCreateBucket bool
+	// Give bucket owner full control
+	// Optional (false by default).
+	BucketOwnerFullControl bool
 	// Encoding format.
 	// Optional (encoding.JSON by default).
 	Codec encoding.Codec
@@ -238,6 +246,7 @@ func NewClient(options Options) (Client, error) {
 	result.c = svc
 	result.bucketName = options.BucketName
 	result.codec = options.Codec
+	result.bucketOwnerFullControl = options.BucketOwnerFullControl
 
 	return result, nil
 }
